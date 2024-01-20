@@ -91,12 +91,13 @@ export const compileCommandsUserConfig = function compileCommandsUserConfig(clie
                 }
 
             })).run(client)
-            return e.select(e.Movie,()=>({
+            return e.select(e.Movie,(m)=>({
                 id: true,
                 title: true,
                 actors: {name: true},
                 release_year: true,
                 isInList:e.bool(true),
+                message:e.op(e.op(e.str('Film '),'++',m.title),'++',e.str(' is nu aan je lijst toegevoegd')),
                 filter_single: {id: id}
             })).run(client)
         }
