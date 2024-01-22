@@ -1,8 +1,13 @@
-import {ActionIdType} from "../../types/aliases";
+import {CrudActionType} from "../../enums/crud-actions.enum";
 
-export class CrudAction{
-    constructor(public id:ActionIdType,
-                public command:(id:string|undefined)=>Promise<Object|null>
+export class CrudAction {
+    constructor(public type: CrudActionType,
+                public concept: string|string[],
+                public filter?:Object|Function,
+                public returnValue?:CrudAction,
+                public condition?:Function,
+                public limit?:number,
+                public pagination?:number
     ) {
     }
 }

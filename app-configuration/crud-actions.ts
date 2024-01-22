@@ -2,8 +2,8 @@ import {CrudAction} from "../server-actions/crudactions/crud-action";
 import * as edgedb from "edgedb"
 import e from "./../dbschema/edgeql-js"
 export const compileCommandsUserConfig = function compileCommandsUserConfig(client:edgedb.Client):CrudAction[]{
-// todo maak crudaction config volledig dynamisch spirnt 2
-    const crudActions:CrudAction[] = []
+// todo maak crudaction config volledig dynamisch sprint2
+const crudActions:CrudAction[] = []
     const getAllMovies = async function getAllMovies() {
         // todo add try catch for internal logging => indien fout geprogrammeerd kan dit fout lopen = niet type safe!
         // todo maak dit type safe met behulp van interface generators
