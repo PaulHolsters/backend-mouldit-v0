@@ -24,15 +24,10 @@ client.ensureConnected().then(() => {
             next()
         })
         server.post('/:actionId', (req: Request, res: Response, next) => {
-            const action = ServerActions.getAction(req.params.actionId)
-            if (action) {
-                action.command(req.body?.id).then(result => {
-                    // todo nagaan wat hier de verschillende errors allemaal kunnen zijn en ze dan degelijk afhandelen
-                    if (result) {
+            const result = ServerActions.executeAction(req.params.actionId,client,req.body?.id)
+            if (result) {
                         res.status(200).send(result)
-                    } else res.status(500)
-                }).catch()
-            } else res.status(500).send('seriously fucked up')
+            } else res.status(500)
         })
         const port = Number(process.env.PORT || 5000)
         http.createServer(server).listen(port)

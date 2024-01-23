@@ -7,6 +7,7 @@ const crudActions:CrudAction[] = []
     const getAllMovies = async function getAllMovies() {
         // todo add try catch for internal logging => indien fout geprogrammeerd kan dit fout lopen = niet type safe!
         // todo maak dit type safe met behulp van interface generators
+
         const myAccount = e.select(e.Account,(account)=>({
             id:true,
             watchlist:{id:true},
