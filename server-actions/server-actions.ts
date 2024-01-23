@@ -34,18 +34,7 @@ export class ServerActions {
                         const mainConcept = ca.concept[0]
                         const setObj: any = {}
                         if (ca.returnValue) {
-                            // todo
-                            /*
-                            *
-                            *   return e.select(e.Movie,()=>({
-                id: true,
-                title: true,
-                actors: {name: true},
-                release_year: true,
-                isInList:e.bool(false),
-                filter_single: {id: id}
-            })).run(client)
-                            * */
+                            return this.executeAction(ca.type+helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join()),client)
                         }
                         return (ids: [string, string] | string) => {
                             if (ids instanceof Array) {
