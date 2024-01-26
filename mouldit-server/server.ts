@@ -1,6 +1,5 @@
 import express, {Request, Response, Application} from 'express';
 import {ServerActions} from "../server-actions/server-actions";
-import {compileCommandsUserConfig} from "../app-configuration/crud-actions";
 import * as edgedb from "edgedb";
 import http from "http";
 
@@ -8,9 +7,9 @@ const bodyParser = require('body-parser')
 
 const client = edgedb.createClient()
 client.ensureConnected().then(() => {
-        compileCommandsUserConfig(client).forEach(c => {
+/*        compileCommandsUserConfig(client).forEach(c => {
             ServerActions.addAction(c)
-        })
+        })*/
         const server = express()
         server.use(bodyParser.urlencoded({extended: false}))
         server.use(bodyParser.json())

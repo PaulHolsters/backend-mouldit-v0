@@ -1,7 +1,5 @@
-import {CrudAction} from "../server-actions/crudactions/crud-action";
-import * as edgedb from "edgedb"
-import e from "./../dbschema/edgeql-js"
-export const compileCommandsUserConfig = function compileCommandsUserConfig(client:edgedb.Client):CrudAction[]{
+
+/*export const compileCommandsUserConfig = function compileCommandsUserConfig(client:edgedb.Client):CrudAction[]{
 // todo maak crudaction config volledig dynamisch sprint2
 const crudActions:CrudAction[] = []
     const getAllMovies = async function getAllMovies() {
@@ -108,5 +106,5 @@ const crudActions:CrudAction[] = []
     crudActions.push(new CrudAction('addMovieToList', addMovieToList))
 
     return crudActions
-}
+}*/
 

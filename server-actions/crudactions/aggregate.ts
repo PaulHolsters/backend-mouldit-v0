@@ -3,7 +3,8 @@ import {CrudAction} from "./crud-action";
 
 export class Aggregate {
     constructor(public type: AggregateType,
-                public source: string | CrudAction | Aggregate,
-                public target?: number | string) {
+                public source: string | CrudAction | Aggregate |string[],
+                // todo de select is problematisch denk ik
+                public target?: string|number|[CrudAction,string] ) {
     }
 }

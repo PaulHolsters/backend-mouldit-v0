@@ -3,7 +3,6 @@ import {ActionIdType} from "../types/aliases";
 import helpers from "../helpers/general-helpers"
 import {CrudActionType} from "../enums/crud-actions.enum";
 import e from "./../dbschema/edgeql-js"
-import {SelectFilterExpression} from "../dbschema/edgeql-js/select";
 import * as edgedb from "edgedb";
 
 export class ServerActions {
@@ -19,16 +18,16 @@ export class ServerActions {
             .capitalizeFirst(sa.concept instanceof Array ? sa.concept.map(p => helpers.capitalizeFirst(p)).join() : sa.concept))
         if (ca) {
             switch (ca.type) {
-                case CrudActionType.Custom:
-
                 case CrudActionType.Get:
                     if (typeof ca.concept === 'string') {
                         const concept = (e as any)[ca.concept]
-
+                        // todo handle calculatedFields
                             return e.select(concept, () => ({
                                 ...concept['*']
                             })).run(client)
                     } else throw new Error('concept in crud action mal configurered')
+                case CrudActionType.GetOne:
+                    // todo
                 case CrudActionType.AddOneToList:
                     if (ca.concept instanceof Array && ca.concept.length === 2) {
                         const mainConcept = ca.concept[0]
@@ -37,13 +36,13 @@ export class ServerActions {
                                 if (conceptIds instanceof Array) {
                                     setObj[ca.concept[1]] = {"+=": conceptIds[1]}
                                     e.update((e as any)[mainConcept], () => ({
-                                        filter_single: ({id: conceptIds[0]} as unknown) as SelectFilterExpression,
+                                        filter_single: ({id: conceptIds[0]} as unknown) as any,
                                         set: setObj
                                     })).run(client)
                                 } else if (ca.filter) {
                                     setObj[ca.concept[1]] = {"+=": conceptIds}
                                     e.update((e as any)[mainConcept], () => ({
-                                        filter_single: (ca.filter) as SelectFilterExpression,
+                                        filter_single: (ca.filter) as any,
                                         set: setObj
                                     })).run(client)
                                 }
@@ -52,13 +51,13 @@ export class ServerActions {
                             if (conceptIds instanceof Array) {
                                 setObj[ca.concept[1]] = {"+=": conceptIds[1]}
                                 return e.update((e as any)[mainConcept], () => ({
-                                    filter_single: ({id: conceptIds[0]} as unknown) as SelectFilterExpression,
+                                    filter_single: ({id: conceptIds[0]} as unknown) as any,
                                     set: setObj
                                 })).run(client)
                             } else if (ca.filter) {
                                 setObj[ca.concept[1]] = {"+=": conceptIds}
                                 return e.update((e as any)[mainConcept], () => ({
-                                    filter_single: (ca.filter) as SelectFilterExpression,
+                                    filter_single: (ca.filter) as any,
                                     set: setObj
                                 })).run(client)
                             }
@@ -72,13 +71,13 @@ export class ServerActions {
                                 if (conceptIds instanceof Array) {
                                     setObj[ca.concept[1]] = {"-=": conceptIds[1]}
                                     e.update((e as any)[mainConcept], () => ({
-                                        filter_single: ({id: conceptIds[0]} as unknown) as SelectFilterExpression,
+                                        filter_single: ({id: conceptIds[0]} as unknown) as any,
                                         set: setObj
                                     })).run(client)
                                 } else if (ca.filter) {
                                     setObj[ca.concept[1]] = {"-=": conceptIds}
                                     e.update((e as any)[mainConcept], () => ({
-                                        filter_single: (ca.filter) as SelectFilterExpression,
+                                        filter_single: (ca.filter) as any,
                                         set: setObj
                                     })).run(client)
                                 }
@@ -87,13 +86,13 @@ export class ServerActions {
                             if (conceptIds instanceof Array) {
                                 setObj[ca.concept[1]] = {"-=": conceptIds[1]}
                                 return e.update((e as any)[mainConcept], () => ({
-                                    filter_single: ({id: conceptIds[0]} as unknown) as SelectFilterExpression,
+                                    filter_single: ({id: conceptIds[0]} as unknown) as any,
                                     set: setObj
                                 })).run(client)
                             } else if (ca.filter) {
                                 setObj[ca.concept[1]] = {"-=": conceptIds}
                                 return e.update((e as any)[mainConcept], () => ({
-                                    filter_single: (ca.filter) as SelectFilterExpression,
+                                    filter_single: (ca.filter) as any,
                                     set: setObj
                                 })).run(client)
                             }
