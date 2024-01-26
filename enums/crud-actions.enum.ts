@@ -1,5 +1,6 @@
 export enum CrudActionType {
     // SIMPLE CRUD
+    Custom='custom',
     Get = 'get',
     // zonder filtering betekent dit alle records
     GetSpecific = 'getSpecific',
@@ -9,6 +10,7 @@ export enum CrudActionType {
     // voor getOne kan je een condition meegeven indien daaraan niet wordt voldaan, dan wordt er niets teruggeven
     // indien je een filtering meegeeft wordt een eventueel id in de parameters genegeerd
     // zonder filtering wordt gezocht op id die de frontend moet meegeven als parameter
+    // deze id komt automatisch binnen onder het desbetreffende concept in "concept" parameter
     CreateOne = 'createOne',
     // er kan maximaal 1 record aangemaakt worden
     Create = 'create',

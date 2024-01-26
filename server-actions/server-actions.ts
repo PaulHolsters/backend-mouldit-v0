@@ -19,9 +19,12 @@ export class ServerActions {
             .capitalizeFirst(sa.concept instanceof Array ? sa.concept.map(p => helpers.capitalizeFirst(p)).join() : sa.concept))
         if (ca) {
             switch (ca.type) {
+                case CrudActionType.Custom:
+
                 case CrudActionType.Get:
                     if (typeof ca.concept === 'string') {
                         const concept = (e as any)[ca.concept]
+
                             return e.select(concept, () => ({
                                 ...concept['*']
                             })).run(client)
