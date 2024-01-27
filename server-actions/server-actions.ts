@@ -4,6 +4,8 @@ import helpers from "../helpers/general-helpers"
 import {CrudActionType} from "../enums/crud-actions.enum";
 import e from "./../dbschema/edgeql-js"
 import * as edgedb from "edgedb";
+import {Aggregate} from "./crudactions/aggregate";
+import {AggregateType} from "../enums/aggregates.enum";
 
 export class ServerActions {
     private static serverActions: CrudAction[] = []
@@ -11,9 +13,25 @@ export class ServerActions {
     public static addAction(action: CrudAction) {
         this.serverActions.push(action)
     }
-    //|[Promise<unknown>,any]
+    private
     public static executeAction(id: ActionIdType, client: edgedb.Client,conceptIds:string|[string,string])
         :  Promise<unknown>{
+        function resolveAggregate(a:Aggregate):boolean|number{
+            switch (a.type){
+                case AggregateType.Equals:
+                    let source:Aggregate|string[]|boolean|number = a.source
+                    const target = a.target
+                    if(source instanceof Aggregate){
+                        source = resolveAggregate(source)
+                        if(typeof source === 'number' && typeof target === 'number') return source === target
+                    }
+                    throw new Error ('possibility not implemented')
+                case AggregateType.Count:
+
+                    break
+                default: throw new Error('aggregate type'+a.type+' not implemented')
+            }
+        }
         const ca = this.serverActions.find(sa => id === sa.type + helpers
             .capitalizeFirst(sa.concept instanceof Array ? sa.concept.map(p => helpers.capitalizeFirst(p)).join() : sa.concept))
         if (ca) {
@@ -21,7 +39,19 @@ export class ServerActions {
                 case CrudActionType.Get:
                     if (typeof ca.concept === 'string') {
                         const concept = (e as any)[ca.concept]
-                        // todo handle calculatedFields
+                        if(ca.calculatedFields){
+                            const objToSelect = {
+                                ...concept['*'],
+                            }
+                            Object.entries(([k,v]:any)=>{
+                                if(v instanceof Aggregate){
+                                    // het count aggregate heeft de query resultaten en id's nodig!
+                                    // todo maw je kan beter een resolve per aggregate maken
+                                    objToSelect[k] = resolveAggregate(v)
+                                }
+                            })
+                            return e.select(concept, () => (objToSelect)).run(client)
+                        }
                             return e.select(concept, () => ({
                                 ...concept['*']
                             })).run(client)

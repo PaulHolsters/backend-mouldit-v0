@@ -35,6 +35,9 @@ const crudactions: CrudAction[
             )
         }
     ),
+    /*
+    *
+    * */
     new CrudAction(
         CrudActionType.AddOneToList,
         ['account', 'watchlist'],
@@ -49,11 +52,35 @@ const crudactions: CrudAction[
             }
         )
     ),
+    /*
+    *
+const removeMovieFromList = async function removeMovieFromList(id:string|undefined) {
+        if(id){
+            const movie = e.select(e.Movie,(m)=>({
+                filter_single: {id: id}
+            }))
+            e.update(e.Account,(acc)=>({
+                filter_single: {username: 'Pol'},
+                set: {
+                    watchlist: {"-=":movie}
+                }
+            })).run(client)
+            return e.select(e.Movie,()=>({
+                id: true,
+                title: true,
+                actors: {name: true},
+                release_year: true,
+                isInList:e.bool(false),
+                filter_single: {id: id}
+            })).run(client)
+        }
+        return null
+    }
+    * */
     new CrudAction(
         CrudActionType.RemoveOneFromList,
         ['account', 'watchlist'],
         {username: 'Pol'},
-        // todo hoe weer de actie nu welk van de 2 binnengekomen ID's moet genomen worden voor onderstaande crud operatie?
         new CrudAction(
             CrudActionType.GetOne,
             'movie',
@@ -64,3 +91,6 @@ const crudactions: CrudAction[
             }
         ))
 ]
+// todo bedenking:  zonder schema introspectie werkt de TypeScript builder niet, dit wil zeggen dat gewoon edgedb gebruiken eigenlijk evengoed is dan Mouldit voor een developer
+//                  dus de vraag is: wat is de meerwaarde van backend-mouldit?
+//                  antwoord: zonder business types heeft dit geen enkele meerwaarde voor een developer

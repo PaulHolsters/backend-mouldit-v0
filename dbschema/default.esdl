@@ -1,4 +1,5 @@
 module default {
+
   type Account {
     required username: str {
       constraint exclusive;
