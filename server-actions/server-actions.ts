@@ -13,27 +13,40 @@ export class ServerActions {
     public static addAction(action: CrudAction) {
         this.serverActions.push(action)
     }
-
+    private static constructId(ca:CrudAction):string{
+        // todo
+    }
+    private static getIdForConcept(concept:string,conceptIds:{}|{}[]):string{
+        // todo
+    }
+    private static async resolveAggregate(a: Aggregate, conceptIDs: {} | {}[], client: edgedb.Client): Promise<boolean | number> {
+        let source: Aggregate | string | boolean | number = a.source
+        const target = a.target
+        switch (a.type) {
+            case AggregateType.Equals:
+                if (source instanceof Aggregate) {
+                    source = await this.resolveAggregate(source, conceptIDs,client)
+                    if (typeof source === 'number' && typeof target === 'number') return source === target
+                }
+                throw new Error('possibility not implemented')
+            case AggregateType.CountEquals:
+                if (typeof source === 'string' && target instanceof CrudAction) {
+                    const sourceCt = source
+                    const actionId: string = this.constructId(target)
+                    // het gaat om een getOne actie namelijk de lijst van Pol ophalen
+                    const result = await this.executeAction(actionId, client, conceptIDs)
+                    if(result instanceof Array){
+                        // het is een lijst met films uit de watchlist van Pol
+                        return result.reduce((p,c)=>{(c.id===this.getIdForConcept(sourceCt,conceptIDs)) ? p++ : p},0)
+                    }
+                }
+                throw new Error('possibility not implemented')
+            default:
+                throw new Error('aggregate type' + a.type + ' not implemented')
+        }
+    }
     public static executeAction(id: ActionIdType, client: edgedb.Client, conceptIds: {} | {}[])
         : Promise<unknown> {
-        function resolveAggregate(a: Aggregate, conceptIDs: {} | {}[]): boolean | number {
-            let source: Aggregate | string | boolean | number = a.source
-            const target = a.target
-            switch (a.type) {
-                case AggregateType.Equals:
-                    if (source instanceof Aggregate) {
-                        source = resolveAggregate(source, conceptIDs)
-                        if (typeof source === 'number' && typeof target === 'number') return source === target
-                    }
-                    throw new Error('possibility not implemented')
-                case AggregateType.CountEquals:
-                    if(typeof source === 'string' && target instanceof CrudAction){
-
-                    }
-                default:
-                    throw new Error('aggregate type' + a.type + ' not implemented')
-            }
-        }
         const ca = this.serverActions
             .find(sa => id === sa.type + helpers
             .capitalizeFirst(sa.concept instanceof Array ?
@@ -50,15 +63,14 @@ export class ServerActions {
                         if (ca.calculatedFields) {
                             Object.entries(ca.calculatedFields).forEach(([k, v]: any) => {
                                 if (v instanceof Aggregate) {
-                                    objToSelect[k] = resolveAggregate(v, conceptIds)
+                                    objToSelect[k] = this.resolveAggregate(v, conceptIds,client)
                                 }
                             })
                         }
                         return e.select(concept, () => (objToSelect)).run(client)
                     } else throw new Error('concept in crud action mal configurered')
                 case CrudActionType.GetOne:
-                // todo dit is voor de return waarde van the lijst bewerking acties
-
+                // todo
                 case CrudActionType.AddOneToList:
                     if (ca.concept instanceof Array && ca.concept.length === 2) {
                         const mainConcept = ca.concept[0]
