@@ -11,8 +11,7 @@ const myList = new CrudAction(
 // je neemt de id van het overeenkomstige concept uit de conceptIds
 // je geeft het aantal records uit de target na het uitvoeren van de query die qua id gelijk is
 // je neemt id wanneer er verder geen property staat
-
-const crudactions: CrudAction[
+export const crudActions: CrudAction[
     ] = [
     new CrudAction(
         CrudActionType.Get,

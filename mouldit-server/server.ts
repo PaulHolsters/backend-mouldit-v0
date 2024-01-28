@@ -2,14 +2,15 @@ import express, {Request, Response, Application} from 'express';
 import {ServerActions} from "../server-actions/server-actions";
 import * as edgedb from "edgedb";
 import http from "http";
+import {crudActions} from "../app-configuration/crudactions";
 
 const bodyParser = require('body-parser')
 
 const client = edgedb.createClient()
 client.ensureConnected().then(() => {
-/*        compileCommandsUserConfig(client).forEach(c => {
+        crudActions.forEach(c => {
             ServerActions.addAction(c)
-        })*/
+        })
         const server = express()
         server.use(bodyParser.urlencoded({extended: false}))
         server.use(bodyParser.json())
@@ -23,6 +24,7 @@ client.ensureConnected().then(() => {
             next()
         })
         server.post('/:actionId', (req: Request, res: Response, next) => {
+            // todo alles aanpassen qua conceptIds en zo
             const result = ServerActions.executeAction(req.params.actionId,client,req.body?.id)
             if (result) {
                         res.status(200).send(result)

@@ -9,23 +9,25 @@ import {AggregateType} from "../enums/aggregates.enum";
 
 export class ServerActions {
     private static serverActions: CrudAction[] = []
-
     public static addAction(action: CrudAction) {
         this.serverActions.push(action)
     }
     private static constructId(ca:CrudAction):string{
-        // todo
+        if(ca.concept instanceof Array){
+            return ca.type + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join())
+        }
+        return ca.type+helpers.capitalizeFirst(ca.concept)
     }
-    private static getIdForConcept(concept:string,conceptIds:{}|{}[]):string{
-        // todo
+    private static getIdForConcept(concept:string,conceptIds:{[key: string]: any}):string{
+        return (conceptIds as {[key: string]: any})[concept]
     }
-    private static async resolveAggregate(a: Aggregate, conceptIDs: {} | {}[], client: edgedb.Client): Promise<boolean | number> {
+    private static async resolveAggregate(a: Aggregate, conceptIds:{[key: string]: any}, client: edgedb.Client): Promise<boolean | number> {
         let source: Aggregate | string | boolean | number = a.source
         const target = a.target
         switch (a.type) {
             case AggregateType.Equals:
                 if (source instanceof Aggregate) {
-                    source = await this.resolveAggregate(source, conceptIDs,client)
+                    source = await this.resolveAggregate(source, conceptIds,client)
                     if (typeof source === 'number' && typeof target === 'number') return source === target
                 }
                 throw new Error('possibility not implemented')
@@ -34,10 +36,10 @@ export class ServerActions {
                     const sourceCt = source
                     const actionId: string = this.constructId(target)
                     // het gaat om een getOne actie namelijk de lijst van Pol ophalen
-                    const result = await this.executeAction(actionId, client, conceptIDs)
+                    const result = await this.executeAction(actionId, client, conceptIds)
                     if(result instanceof Array){
                         // het is een lijst met films uit de watchlist van Pol
-                        return result.reduce((p,c)=>{(c.id===this.getIdForConcept(sourceCt,conceptIDs)) ? p++ : p},0)
+                        return result.reduce((p,c)=>{(c.id===this.getIdForConcept(sourceCt,conceptIds)) ? p++ : p},0)
                     }
                 }
                 throw new Error('possibility not implemented')
@@ -47,6 +49,7 @@ export class ServerActions {
     }
     public static executeAction(id: ActionIdType, client: edgedb.Client, conceptIds: {} | {}[])
         : Promise<unknown> {
+        // todo herwerk op basis van nieuwe structuur conceptIds
         const ca = this.serverActions
             .find(sa => id === sa.type + helpers
             .capitalizeFirst(sa.concept instanceof Array ?
@@ -63,6 +66,7 @@ export class ServerActions {
                         if (ca.calculatedFields) {
                             Object.entries(ca.calculatedFields).forEach(([k, v]: any) => {
                                 if (v instanceof Aggregate) {
+                                    // todo werk recursie weg
                                     objToSelect[k] = this.resolveAggregate(v, conceptIds,client)
                                 }
                             })
@@ -89,6 +93,7 @@ export class ServerActions {
                                     set: setObj
                                 })).run(client)
                             }
+                            // todo werk recursie weg
                             return this.executeAction(ca.type + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join()), client, conceptIds)
                         }
                         if (conceptIds instanceof Array) {
