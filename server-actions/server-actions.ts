@@ -13,121 +13,122 @@ export class ServerActions {
     public static addAction(action: CrudAction) {
         this.serverActions.push(action)
     }
-    private
-    public static executeAction(id: ActionIdType, client: edgedb.Client,conceptIds:string|[string,string])
-        :  Promise<unknown>{
-        function resolveAggregate(a:Aggregate):boolean|number{
-            switch (a.type){
-                case AggregateType.Equals:
-                    let source:Aggregate|string[]|boolean|number = a.source
-                    const target = a.target
-                    if(source instanceof Aggregate){
-                        source = resolveAggregate(source)
-                        if(typeof source === 'number' && typeof target === 'number') return source === target
-                    }
-                    throw new Error ('possibility not implemented')
-                case AggregateType.Count:
 
-                    break
-                default: throw new Error('aggregate type'+a.type+' not implemented')
+    public static executeAction(id: ActionIdType, client: edgedb.Client, conceptIds: {} | {}[])
+        : Promise<unknown> {
+        function resolveAggregate(a: Aggregate, conceptIDs: {} | {}[]): boolean | number {
+            let source: Aggregate | string | boolean | number = a.source
+            const target = a.target
+            switch (a.type) {
+                case AggregateType.Equals:
+                    if (source instanceof Aggregate) {
+                        source = resolveAggregate(source, conceptIDs)
+                        if (typeof source === 'number' && typeof target === 'number') return source === target
+                    }
+                    throw new Error('possibility not implemented')
+                case AggregateType.CountEquals:
+                    if(typeof source === 'string' && target instanceof CrudAction){
+
+                    }
+                default:
+                    throw new Error('aggregate type' + a.type + ' not implemented')
             }
         }
-        const ca = this.serverActions.find(sa => id === sa.type + helpers
-            .capitalizeFirst(sa.concept instanceof Array ? sa.concept.map(p => helpers.capitalizeFirst(p)).join() : sa.concept))
+        const ca = this.serverActions
+            .find(sa => id === sa.type + helpers
+            .capitalizeFirst(sa.concept instanceof Array ?
+                sa.concept.map(p => helpers.capitalizeFirst(p)).join() :
+                sa.concept))
         if (ca) {
             switch (ca.type) {
                 case CrudActionType.Get:
                     if (typeof ca.concept === 'string') {
                         const concept = (e as any)[ca.concept]
-                        if(ca.calculatedFields){
-                            const objToSelect = {
-                                ...concept['*'],
-                            }
-                            Object.entries(([k,v]:any)=>{
-                                if(v instanceof Aggregate){
-                                    // het count aggregate heeft de query resultaten en id's nodig!
-                                    // todo maw je kan beter een resolve per aggregate maken
-                                    objToSelect[k] = resolveAggregate(v)
+                        const objToSelect = {
+                            ...concept['*'],
+                        }
+                        if (ca.calculatedFields) {
+                            Object.entries(ca.calculatedFields).forEach(([k, v]: any) => {
+                                if (v instanceof Aggregate) {
+                                    objToSelect[k] = resolveAggregate(v, conceptIds)
                                 }
                             })
-                            return e.select(concept, () => (objToSelect)).run(client)
                         }
-                            return e.select(concept, () => ({
-                                ...concept['*']
-                            })).run(client)
+                        return e.select(concept, () => (objToSelect)).run(client)
                     } else throw new Error('concept in crud action mal configurered')
                 case CrudActionType.GetOne:
-                    // todo
+                // todo dit is voor de return waarde van the lijst bewerking acties
+
                 case CrudActionType.AddOneToList:
                     if (ca.concept instanceof Array && ca.concept.length === 2) {
                         const mainConcept = ca.concept[0]
                         const setObj: any = {}
                         if (ca.returnValue) {
-                                if (conceptIds instanceof Array) {
-                                    setObj[ca.concept[1]] = {"+=": conceptIds[1]}
-                                    e.update((e as any)[mainConcept], () => ({
-                                        filter_single: ({id: conceptIds[0]} as unknown) as any,
-                                        set: setObj
-                                    })).run(client)
-                                } else if (ca.filter) {
-                                    setObj[ca.concept[1]] = {"+=": conceptIds}
-                                    e.update((e as any)[mainConcept], () => ({
-                                        filter_single: (ca.filter) as any,
-                                        set: setObj
-                                    })).run(client)
-                                }
-                            return this.executeAction(ca.type+helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join()),client,conceptIds)
-                        }
                             if (conceptIds instanceof Array) {
                                 setObj[ca.concept[1]] = {"+=": conceptIds[1]}
-                                return e.update((e as any)[mainConcept], () => ({
+                                e.update((e as any)[mainConcept], () => ({
                                     filter_single: ({id: conceptIds[0]} as unknown) as any,
                                     set: setObj
                                 })).run(client)
                             } else if (ca.filter) {
                                 setObj[ca.concept[1]] = {"+=": conceptIds}
-                                return e.update((e as any)[mainConcept], () => ({
+                                e.update((e as any)[mainConcept], () => ({
                                     filter_single: (ca.filter) as any,
                                     set: setObj
                                 })).run(client)
                             }
+                            return this.executeAction(ca.type + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join()), client, conceptIds)
+                        }
+                        if (conceptIds instanceof Array) {
+                            setObj[ca.concept[1]] = {"+=": conceptIds[1]}
+                            return e.update((e as any)[mainConcept], () => ({
+                                filter_single: ({id: conceptIds[0]} as unknown) as any,
+                                set: setObj
+                            })).run(client)
+                        } else if (ca.filter) {
+                            setObj[ca.concept[1]] = {"+=": conceptIds}
+                            return e.update((e as any)[mainConcept], () => ({
+                                filter_single: (ca.filter) as any,
+                                set: setObj
+                            })).run(client)
+                        }
                     }
                     throw new Error('concept in crud action mal configurered')
                 case CrudActionType.RemoveOneFromList:
-                        if (ca.concept instanceof Array && ca.concept.length === 2) {
-                            const mainConcept = ca.concept[0]
-                            const setObj: any = {}
-                            if (ca.returnValue) {
-                                if (conceptIds instanceof Array) {
-                                    setObj[ca.concept[1]] = {"-=": conceptIds[1]}
-                                    e.update((e as any)[mainConcept], () => ({
-                                        filter_single: ({id: conceptIds[0]} as unknown) as any,
-                                        set: setObj
-                                    })).run(client)
-                                } else if (ca.filter) {
-                                    setObj[ca.concept[1]] = {"-=": conceptIds}
-                                    e.update((e as any)[mainConcept], () => ({
-                                        filter_single: (ca.filter) as any,
-                                        set: setObj
-                                    })).run(client)
-                                }
-                                return this.executeAction(ca.type+helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join()),client,conceptIds)
-                            }
+                    if (ca.concept instanceof Array && ca.concept.length === 2) {
+                        const mainConcept = ca.concept[0]
+                        const setObj: any = {}
+                        if (ca.returnValue) {
                             if (conceptIds instanceof Array) {
                                 setObj[ca.concept[1]] = {"-=": conceptIds[1]}
-                                return e.update((e as any)[mainConcept], () => ({
+                                e.update((e as any)[mainConcept], () => ({
                                     filter_single: ({id: conceptIds[0]} as unknown) as any,
                                     set: setObj
                                 })).run(client)
                             } else if (ca.filter) {
                                 setObj[ca.concept[1]] = {"-=": conceptIds}
-                                return e.update((e as any)[mainConcept], () => ({
+                                e.update((e as any)[mainConcept], () => ({
                                     filter_single: (ca.filter) as any,
                                     set: setObj
                                 })).run(client)
                             }
+                            return this.executeAction(ca.type + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join()), client, conceptIds)
                         }
-                        throw new Error('concept in crud action mal configurered')
+                        if (conceptIds instanceof Array) {
+                            setObj[ca.concept[1]] = {"-=": conceptIds[1]}
+                            return e.update((e as any)[mainConcept], () => ({
+                                filter_single: ({id: conceptIds[0]} as unknown) as any,
+                                set: setObj
+                            })).run(client)
+                        } else if (ca.filter) {
+                            setObj[ca.concept[1]] = {"-=": conceptIds}
+                            return e.update((e as any)[mainConcept], () => ({
+                                filter_single: (ca.filter) as any,
+                                set: setObj
+                            })).run(client)
+                        }
+                    }
+                    throw new Error('concept in crud action mal configurered')
                 default:
                     throw new Error('Crudaction type not implemented')
             }

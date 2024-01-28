@@ -8,14 +8,10 @@ const myList = new CrudAction(
     ['account','watchlist'],
     {username: 'Pol'}
 );
-/*
-//
-const myList = e.select(e.Account, (account) => ({
-    id: true,
-    watchlist: {id: true},
-    filter: e.op(account.username, '=', 'Pol')
-})).watchlist;
-*/
+// je neemt de id van het overeenkomstige concept uit de conceptIds
+// je geeft het aantal records uit de target na het uitvoeren van de query die qua id gelijk is
+// je neemt id wanneer er verder geen property staat
+
 const crudactions: CrudAction[
     ] = [
     new CrudAction(
@@ -27,9 +23,9 @@ const crudactions: CrudAction[
             isInList: new Aggregate(
                 AggregateType.Equals,
                 new Aggregate(
-                    AggregateType.Count,
-                    ['movie', 'id'],
-                    [myList, 'id']
+                    AggregateType.CountEquals,
+                    'movie',
+                    myList
                 ),
                 1
             )
