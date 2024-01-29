@@ -6,6 +6,7 @@ import e from "./../dbschema/edgeql-js"
 import * as edgedb from "edgedb";
 import {Aggregate} from "./crudactions/aggregate";
 import {AggregateType} from "../enums/aggregates.enum";
+import {CrudActionConstruct} from "./crudactions/crud-action-construct";
 
 export class ServerActions {
     private static serverActions: CrudAction[] = []
@@ -25,25 +26,25 @@ export class ServerActions {
         return (conceptIds as { [key: string]: any })[concept]
     }
 
-    private static async resolveAggregate(r:any, a: Aggregate,  client: edgedb.Client,conceptIds: (({ [key: string]: any })|undefined)): any{
-        console.log('resolving aggr',conceptIds)
+    private static async resolveAggregate(r: any, a: Aggregate, client: edgedb.Client, conceptIds: (({ [key: string]: any }) | undefined)): any {
+        console.log('resolving aggr', conceptIds)
         let source: Aggregate | string | boolean | number = a.source
         const target = a.target
         switch (a.type) {
             case AggregateType.Equals:
                 if (source instanceof Aggregate) {
                     console.log('de equals pre')
-                    source = await this.resolveAggregate(r,source,  client,conceptIds)
-                    console.log('de equals',source) // todo tot hier geraak ik niet
+                    source = await this.resolveAggregate(r, source, client, conceptIds)
+                    console.log('de equals', source) // todo tot hier geraak ik niet
                     if (typeof source === 'number' && typeof target === 'number') return source === target
                 }
                 throw new Error('possibility not implemented')
             case AggregateType.CountEquals:
                 if (typeof source === 'string' && target instanceof CrudAction) {
                     const sourceCt = source
-                    console.log('should be movie',sourceCt)
+                    console.log('should be movie', sourceCt)
                     const actionId: string = this.constructId(target)
-                    console.log('id',actionId)
+                    console.log('id', actionId)
                     // het gaat om een getOne actie namelijk de lijst van Pol ophalen
                     const result = await this.executeAction(actionId, client, conceptIds)
                     /*
@@ -58,7 +59,7 @@ resultaat lijst pol = lijst met film ids {
   ]
 }
                     * */
-                    console.log('er moeten concept ids zijn maar die zijn er niet',conceptIds)
+                    console.log('er moeten concept ids zijn maar die zijn er niet', conceptIds)
                     if (result instanceof Array && conceptIds) {
                         // het is een lijst met films uit de watchlist van Pol
                         return result.reduce((p, c) => {
@@ -71,8 +72,9 @@ resultaat lijst pol = lijst met film ids {
                 throw new Error('aggregate type' + a.type + ' not implemented')
         }
     }
-    private static async calculateInnerSelect(r: any, calcFields: Object,client: edgedb.Client,conceptIds: (({ [key: string]: any })|undefined)): any {
-        const objToSelect : { [key: string]: any }= {}
+
+    private static async calculateInnerSelect(r: any, calcFields: Object, client: edgedb.Client, conceptIds: (({ [key: string]: any }) | undefined)): any {
+        const objToSelect: { [key: string]: any } = {}
         for (const [k, v] of Object.entries(calcFields)) {
             // in ons voorbeeld zal dit maar 1 property 'isInList' zijn
             if (v instanceof Aggregate) {
@@ -103,12 +105,12 @@ resultaat lijst pol = lijst met film ids {
             *   zoals hierboven te gebruiken binnen een echte crudactie
             *
                 * */
-                objToSelect[k] = await this.resolveAggregate(r,v, client, conceptIds)
+                objToSelect[k] = await this.resolveAggregate(r, v, client, conceptIds)
             }
         }
     }
 
-    public static async executeAction(id: ActionIdType, client: edgedb.Client,conceptIds: (({ [key: string]: any })|undefined))
+    public static async executeAction(id: ActionIdType, client: edgedb.Client, conceptIds: (({ [key: string]: any }) | undefined))
         : Promise<unknown> {
         const ca = this.serverActions
             .find(sa => id === sa.type + (sa.concept instanceof Array ?
@@ -125,9 +127,9 @@ resultaat lijst pol = lijst met film ids {
                         }
                         if (ca.calculatedFields) {
                             const calcFields = ca.calculatedFields
-                            return e.select(concept, (r:any) => (this.constructQueryObject(objToSelect,r,calcFields,conceptIds))).run(client)
+                            return e.select(concept, (r: any) => (this.constructQueryObject(objToSelect, r, calcFields, conceptIds))).run(client)
                         }
-                        return e.select(concept, (r:any) => (objToSelect)).run(client)
+                        return e.select(concept, (r: any) => (objToSelect)).run(client)
                     } else throw new Error('concept in crud action not implemented')
                 case CrudActionType.GetOne:
                     if (ca.concept instanceof Array && ca.concept.length === 2) {
@@ -137,7 +139,7 @@ resultaat lijst pol = lijst met film ids {
                             const concept = (e as any)[helpers.capitalizeFirst(ca.concept[0])]
                             // todo zeker checken of dit eigenlijk wel mogelijk is
                             return e.select(concept, (r: any) => ({
-                            ...objToSelect,
+                                ...objToSelect,
                                 filter_single: {...ca.filter} as any
                             })).run(client)
                         }
@@ -150,7 +152,7 @@ resultaat lijst pol = lijst met film ids {
                         setObj[ca.concept[1]] = {"+=": conceptIds[ca.concept[1]]}
                         if (ca.filter && typeof ca.filter === 'object' && !(ca.filter instanceof Aggregate)) {
                             // todo zeker checken of dit eigenlijk wel mogelijk is
-                            e.update((e as any)[mainConcept], (r:any) => ({
+                            e.update((e as any)[mainConcept], (r: any) => ({
                                 filter_single: {...ca.filter} as any,
                                 set: setObj
                             })).run(client)
@@ -173,7 +175,7 @@ resultaat lijst pol = lijst met film ids {
                         setObj[ca.concept[1]] = {"-=": conceptIds[ca.concept[1]]}
                         if (ca.filter && typeof ca.filter === 'object' && !(ca.filter instanceof Aggregate)) {
                             // todo zeker checken of dit eigenlijk wel mogelijk is
-                            e.update((e as any)[mainConcept], (r:any) => ({
+                            e.update((e as any)[mainConcept], (r: any) => ({
                                 filter_single: {...ca.filter} as any,
                                 set: setObj
                             })).run(client)
@@ -194,12 +196,64 @@ resultaat lijst pol = lijst met film ids {
         } else throw new Error('bad request')
     }
 
-    private static constructQueryObject(queryProps:any, r: any, calcFields: Object, conceptIds: { [p: string]: any } | undefined):any {
+    private static constructQueryObject(queryProps: any, r: any, calcFields: Object, conceptIds: { [p: string]: any } | undefined): any {
         // gebruik queryProps om aan te vullen met query construct cal props
-        // r is het record dat komt van de bovenliggende query
+        // r is het record dat komt van de bovenliggende query in dit geval een film
         for (const [k, v] of Object.entries(calcFields)) {
             if (v instanceof Aggregate) {
-                // todo
+                /*
+            *             * e.op(                                             * new Aggregate(AggregateType.Equals
+            *   e.count(e.select(                                   ** new Aggregate(AggregateType.CountEquals
+            *      myAccount.watchlist, (r)=>({id:true,filter:           *** new CrudActionConstruct(...
+                            * e.op(                                         **
+                            *   movie.id, =r.id                                      'movie'
+                            *   '=',                                            **
+                            *   r.id                                            ***
+                            * )
+                    }))
+                ),
+            *   '=',                                              *,
+            *   1)                                                1
+            *
+                * */
+                let query: any
+                let innerQuery: any
+                switch (v.type) {
+                    case AggregateType.Equals:
+                        query = e.op
+                        const source = v.source
+                        const target = v.target
+                        if (source instanceof Aggregate) {
+                            switch (source.type) {
+                                case AggregateType.CountEquals:
+                                    const source2 = source.source // niet nodig
+                                    const target2 = source.target
+                                    if (target2 instanceof CrudActionConstruct && target2.concept instanceof Array && target2.concept.length === 2) {
+                                        if (target2.filter && typeof target2.filter === 'object' && !(target2.filter instanceof Aggregate)) {
+                                            const objToSelect: { [key: string]: any } = {}
+                                            objToSelect[target2.concept[1]] = {id: true}
+                                            const concept = (e as any)[helpers.capitalizeFirst(target2.concept[0])]
+                                            innerQuery = e.count(e.select(
+                                                    (e.select(concept, (
+                                                            ri) => ({
+                                                            ...objToSelect,
+                                                            filter_single: {...target2.filter} as any
+                                                        })
+                                                    ) as any)[target2.concept[0]], (rj: any) => ({
+                                                        id: true,
+                                                        filter: e.op(r.id, '=', rj.id)
+                                                    })
+                                                )
+                                            )
+                                        }
+                                    }
+                                    break
+                            }
+                        }
+                        query = query(innerQuery, '=', target)
+                        return query
+                }
+                // k toevoegen
             } else throw new Error('calc fields for QueryActionConstruct not implemented yet')
         }
         throw new Error('')

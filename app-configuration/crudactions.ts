@@ -31,7 +31,7 @@ export const crudActions: CrudAction[
                     AggregateType.Equals,
                     new Aggregate(
                         AggregateType.CountEquals,
-                        'movie',
+                        'movie', // todo niet nodig: dit volgt uit de bovenste query
                         myList
                     ),
                     1
