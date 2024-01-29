@@ -25,7 +25,7 @@ export class ServerActions {
         return (conceptIds as { [key: string]: any })[concept]
     }
 
-    private static async resolveAggregate(a: Aggregate,  client: edgedb.Client,conceptIds: (({ [key: string]: any })|undefined)): Promise<boolean | number> {
+    private static async resolveAggregate(r:any, a: Aggregate,  client: edgedb.Client,conceptIds: (({ [key: string]: any })|undefined)): any{
         console.log('resolving aggr',conceptIds)
         let source: Aggregate | string | boolean | number = a.source
         const target = a.target
@@ -33,7 +33,7 @@ export class ServerActions {
             case AggregateType.Equals:
                 if (source instanceof Aggregate) {
                     console.log('de equals pre')
-                    source = await this.resolveAggregate(source,  client,conceptIds)
+                    source = await this.resolveAggregate(r,source,  client,conceptIds)
                     console.log('de equals',source) // todo tot hier geraak ik niet
                     if (typeof source === 'number' && typeof target === 'number') return source === target
                 }
@@ -71,6 +71,44 @@ resultaat lijst pol = lijst met film ids {
                 throw new Error('aggregate type' + a.type + ' not implemented')
         }
     }
+    private static async calculateInnerSelect(r: any, calcFields: Object,client: edgedb.Client,conceptIds: (({ [key: string]: any })|undefined)): any {
+        const objToSelect : { [key: string]: any }= {}
+        for (const [k, v] of Object.entries(calcFields)) {
+            // in ons voorbeeld zal dit maar 1 property 'isInList' zijn
+            if (v instanceof Aggregate) {
+                // todo werk recursie weg
+                console.log('ok for now', k, v)
+                /*
+                *             id: true,
+            title: true,
+            actors: {name: true},
+            release_year: true,
+            * // todo dit moet je terugsturen => een query dus .run(client) NIET doen!
+            isInList:
+            *
+            * e.op(                                   * new Aggregate(AggregateType.Equals
+            *   e.count((                               ** new Aggregate(AggregateType.CountEquals
+            *       e.select(                               *** new CrudActionConstruct(...
+            *           myAccount.watchlist,(r)=>({
+                            id:true,
+                            filter:
+                            * e.op(                              **
+                            *   movie.id,                           'movie'
+                            *   '=',                                 **
+                            *   r.id)})))                            ***
+                            * ),
+            *   '=',                                              *,
+            *   1)                                                1
+            *
+            * todo hoe kunnen we het één nu construeren uit het andere?
+            *  (het resultaat van een aggregaat is altijd een constructie
+            *   zoals hierboven te gebruiken binnen een echte crudactie
+            *
+                * */
+                objToSelect[k] = await this.resolveAggregate(r,v, client, conceptIds)
+            }
+        }
+    }
 
     public static async executeAction(id: ActionIdType, client: edgedb.Client,conceptIds: (({ [key: string]: any })|undefined))
         : Promise<unknown> {
@@ -90,20 +128,10 @@ resultaat lijst pol = lijst met film ids {
                             ...concept['*'],
                         }
                         if (ca.calculatedFields) {
-                            for (const [k, v] of Object.entries(ca.calculatedFields)) {
-                                if (v instanceof Aggregate) {
-                                    // todo werk recursie weg
-                                    console.log('ok for now',k,v)
-                                    // todo hier is nog een probleem: we moeten per film id in de
-                                    //      lijst die je pas hierna opzoekt zien of die overeenkomt met de actie myList
-                                    //      maw het id waarmee je moet vergelijken in onderstaand aggregate is niet aanwezig in de conceptIds
-                                    //      maw het resolven moet in de laatste actie zelf gebeuren ...
-                                    objToSelect[k] = await this.resolveAggregate(v, client, conceptIds)
-                                }
-                            }
+                            const calcFields = ca.calculatedFields
+                            return e.select(concept, (r:any) => (this.calculateInnerSelect(r,calcFields,client,conceptIds))).run(client)
                         }
-                        console.log('getting there',objToSelect)
-                        return e.select(concept, () => (objToSelect)).run(client)
+                        return e.select(concept, (r:any) => (objToSelect)).run(client)
                     } else throw new Error('concept in crud action not implemented')
                 case CrudActionType.GetOne:
                     console.log('getOne',ca)

@@ -2,10 +2,11 @@ import {CrudAction} from "../server-actions/crudactions/crud-action";
 import {CrudActionType} from "../enums/crud-actions.enum";
 import {Aggregate} from "../server-actions/crudactions/aggregate";
 import {AggregateType} from "../enums/aggregates.enum";
+import {CrudActionConstruct} from "../server-actions/crudactions/crud-action-construct";
 
-const myList = new CrudAction(
+const myList = new CrudActionConstruct(
     CrudActionType.GetOne,
-    ['account','watchlist'],
+    ['account', 'watchlist'],
     {username: 'Pol'}
 )
 // je neemt de id van het overeenkomstige concept uit de conceptIds
@@ -15,7 +16,7 @@ export const crudActions: CrudAction[
     ] = [
     new CrudAction(
         CrudActionType.GetOne,
-        ['account','watchlist'],
+        ['account', 'watchlist'],
         {username: 'Pol'}
     ),
     new CrudAction(
@@ -24,15 +25,17 @@ export const crudActions: CrudAction[
         undefined,
         undefined,
         {
-            isInList: new Aggregate(
-                AggregateType.Equals,
+            isInList:
+            // todo hoe resolven we dit het beste? het resultaat van een aggregate MOET een edgeql Query zijn! niet het resultaat van de executie ervan!
                 new Aggregate(
-                    AggregateType.CountEquals,
-                    'movie',
-                    myList
-                ),
-                1
-            )
+                    AggregateType.Equals,
+                    new Aggregate(
+                        AggregateType.CountEquals,
+                        'movie',
+                        myList
+                    ),
+                    1
+                )
         }
     ),
     new CrudAction(
