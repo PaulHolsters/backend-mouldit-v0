@@ -85,18 +85,16 @@ resultaat lijst pol = lijst met film ids {
             release_year: true,
             * // todo dit moet je terugsturen => een query dus .run(client) NIET doen!
             isInList:
-            *
-            * e.op(                                   * new Aggregate(AggregateType.Equals
-            *   e.count((                               ** new Aggregate(AggregateType.CountEquals
-            *       e.select(                               *** new CrudActionConstruct(...
-            *           myAccount.watchlist,(r)=>({
-                            id:true,
-                            filter:
-                            * e.op(                              **
-                            *   movie.id,                           'movie'
-                            *   '=',                                 **
-                            *   r.id)})))                            ***
-                            * ),
+            * e.op(                                             * new Aggregate(AggregateType.Equals
+            *   e.count(e.select(                                   ** new Aggregate(AggregateType.CountEquals
+            *      myAccount.watchlist, (r)=>({id:true,filter:           *** new CrudActionConstruct(...
+                            * e.op(                                         **
+                            *   movie.id,                                       'movie'
+                            *   '=',                                            **
+                            *   r.id                                            ***
+                            * )
+                    }))
+                ),
             *   '=',                                              *,
             *   1)                                                1
             *
@@ -117,8 +115,6 @@ resultaat lijst pol = lijst met film ids {
                 sa.concept.map(p => helpers.capitalizeFirst(p)).join('') :
                 helpers
                     .capitalizeFirst(sa.concept)))
-        // todo fix bugeen geneste CrudActie kan niet gevonden worden bv. de getOne voorlopig copy paste
-        //              later via algoritme deeper search
         if (ca) {
             switch (ca.type) {
                 case CrudActionType.Get:
@@ -129,19 +125,17 @@ resultaat lijst pol = lijst met film ids {
                         }
                         if (ca.calculatedFields) {
                             const calcFields = ca.calculatedFields
-                            return e.select(concept, (r:any) => (this.calculateInnerSelect(r,calcFields,client,conceptIds))).run(client)
+                            return e.select(concept, (r:any) => (this.constructQueryObject(objToSelect,r,calcFields,conceptIds))).run(client)
                         }
                         return e.select(concept, (r:any) => (objToSelect)).run(client)
                     } else throw new Error('concept in crud action not implemented')
                 case CrudActionType.GetOne:
-                    console.log('getOne',ca)
                     if (ca.concept instanceof Array && ca.concept.length === 2) {
                         if (ca.filter && typeof ca.filter === 'object' && !(ca.filter instanceof Aggregate)) {
                             const objToSelect: { [key: string]: any } = {}
                             objToSelect[ca.concept[1]] = {id: true}
                             const concept = (e as any)[helpers.capitalizeFirst(ca.concept[0])]
                             // todo zeker checken of dit eigenlijk wel mogelijk is
-                            console.log('crud resturn about to happen',concept)
                             return e.select(concept, (r: any) => ({
                             ...objToSelect,
                                 filter_single: {...ca.filter} as any
@@ -198,5 +192,16 @@ resultaat lijst pol = lijst met film ids {
                     throw new Error('Crudaction type not implemented')
             }
         } else throw new Error('bad request')
+    }
+
+    private static constructQueryObject(queryProps:any, r: any, calcFields: Object, conceptIds: { [p: string]: any } | undefined):any {
+        // gebruik queryProps om aan te vullen met query construct cal props
+        // r is het record dat komt van de bovenliggende query
+        for (const [k, v] of Object.entries(calcFields)) {
+            if (v instanceof Aggregate) {
+                // todo
+            } else throw new Error('calc fields for QueryActionConstruct not implemented yet')
+        }
+        throw new Error('')
     }
 }
