@@ -83,11 +83,18 @@ resultaat lijst pol = lijst met film ids {
                         const concept = (e as any)[helpers.capitalizeFirst(ca.concept)]
                         const objToSelect = {
                             ...concept['*'],
+                            isInList: e.bool(true)
                         }
+                        console.log(objToSelect)
                         if (ca.calculatedFields) {
                             const calcFields = ca.calculatedFields
-                            // dit wortd niet elke keer uitgevoerd op het moment, maar als je een willkeurig ding pakt moet het wel werken denk ik
-                            const selectTR =  await e.select(concept, (r: any) => ({...this.constructQueryObject(objToSelect, r, calcFields, conceptIds,client)})).run(client)
+                            // strategie: maak array met props van de calcfields
+                            //  await this.constructQueryObject(objToSelect, r, calcFields, conceptIds, client)})
+                            const selectTR = await e.select(concept, (r: any) => ({
+                                ...concept['*'],
+                                // todo dit werkt al beter, enkel de vergelijking met elk record qua id werkt nog niet naar behoren
+                                isInList: this.constructQueryObject(r.id,calcFields,conceptIds,client)
+                            })).run(client)
                             console.log(selectTR,'selectTr')
                             // todo enkel de id's van elke film komt terug hoewel de funtie eigenlijk een correct object teruggeeft
                             return selectTR
@@ -158,9 +165,7 @@ resultaat lijst pol = lijst met film ids {
             }
         } else throw new Error('bad request')
     }
-    private static async constructQueryObject(queryProps: any, r: any, calcFields: Object, conceptIds: { [p: string]: any } | undefined,client: edgedb.Client): Promise<any> {
-        // todo fix: nu komen alle films terug maar zonder de ndoige properties
-        console.log(queryProps,'queryprops start')
+    private static constructQueryObject(id: any, calcFields: Object, conceptIds: { [p: string]: any } | undefined,client: edgedb.Client): any {
         // gebruik queryProps om aan te vullen met query construct cal props
         // r is het record dat komt van de bovenliggende query in dit geval een film
         let query: any
@@ -204,25 +209,28 @@ resultaat lijst pol = lijst met film ids {
                                                     filter_single: {...target2.filter} as any
                                                 })
                                             ) as any)[target2.concept[1]]
-                                            innerQuery = e.count(e.select(
+                                            innerQuery = e.count(
+                                                e.select(
                                                     innerSelect, (rj: any) => ({
                                                         id: true,
-                                                        filter_single: e.op(e.str('1d01d714-b6cc-11ee-810c-b73c23411c9e'), '=', e.str(rj.id.toString()))
+                                                       // filter_single:{id:id} as any
+                                                        filter:e.op(rj.id,'=',id)
                                                     })
                                                 )
                                             )
-                                            const resultMustBeOne = await innerQuery.run(client)
-                                            console.log(resultMustBeOne,'rmo')
+                                            //e.str(rj.id.toString())
+                                            //e.op(rj.id.toString(), '=', '1d01d714-b6cc-11ee-810c-b73c23411c9e')
+                                            // e.op(e.str('1d01d714-b6cc-11ee-810c-b73c23411c9e'), '=', '1d01d714-b6cc-11ee-810c-b73c23411c9e')
+                                            // todo op het moment dat je dit uitvoert is er van een id volgens mij nog geen sprake ...
                                         }
                                     }
                                     break
                             }
                         }
-                        query = query(innerQuery, '=', target)
-                        queryProps[k] = query
+                        query = query(innerQuery, '=', target) as boolean
                 }
             } else throw new Error('calc fields for QueryActionConstruct not implemented yet')
         }
-        return queryProps
+        return query
     }
 }

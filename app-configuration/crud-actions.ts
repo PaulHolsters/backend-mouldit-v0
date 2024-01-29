@@ -11,6 +11,7 @@ const crudActions:CrudAction[] = []
             watchlist:{id:true},
             filter: e.op(account.username,'=','Pol')
         }));
+        // todo andere strategie, je construeert heel de query niet enkel het calcfieldsstuk ?
         return e.select(e.Movie, (movie) => ({
             id: true,
             title: true,
@@ -18,6 +19,7 @@ const crudActions:CrudAction[] = []
             release_year: true,
             isInList:e.op(e.count((e.select(myAccount.watchlist,(list)=>({
                 id:true,
+                // todo dit kan je duidelijk niet scheiden van dat van boven
                 filter:e.op(movie.id,'=',list.id)
             })))),'=',1)
     })).run(client)
