@@ -10,30 +10,26 @@ import {CrudActionConstruct} from "./crudactions/crud-action-construct";
 
 export class ServerActions {
     private static serverActions: CrudAction[] = []
-
     public static addAction(action: CrudAction) {
         this.serverActions.push(action)
     }
-
     private static constructId(ca: CrudAction): string {
         if (ca.concept instanceof Array) {
             return ca.type + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join(''))
         }
         return ca.type + helpers.capitalizeFirst(ca.concept)
     }
-
     private static getIdForConcept(concept: string, conceptIds: { [key: string]: any }): string {
         return (conceptIds as { [key: string]: any })[concept]
     }
-
-    private static async resolveAggregate(r: any, a: Aggregate, client: edgedb.Client, conceptIds: (({ [key: string]: any }) | undefined)): any {
+/*    private static async resolveAggregate(r: any, a: Aggregate, client: edgedb.Client, conceptIds: (({ [key: string]: any }) | undefined)): any {
         console.log('resolving aggr', conceptIds)
         let source: Aggregate | string | boolean | number = a.source
         const target = a.target
         switch (a.type) {
             case AggregateType.Equals:
                 if (source instanceof Aggregate) {
-                    console.log('de equals pre')
+                    // todo wegwerken die handel!
                     source = await this.resolveAggregate(r, source, client, conceptIds)
                     console.log('de equals', source) // todo tot hier geraak ik niet
                     if (typeof source === 'number' && typeof target === 'number') return source === target
@@ -47,7 +43,7 @@ export class ServerActions {
                     console.log('id', actionId)
                     // het gaat om een getOne actie namelijk de lijst van Pol ophalen
                     const result = await this.executeAction(actionId, client, conceptIds)
-                    /*
+                    /!*
 resultaat lijst pol = lijst met film ids {
   watchlist: [
     { id: '1d01ca30-b6cc-11ee-810c-5355de4f6cd5' },
@@ -58,7 +54,7 @@ resultaat lijst pol = lijst met film ids {
     { id: '1d01d89a-b6cc-11ee-810c-6b54d12b3bd6' }
   ]
 }
-                    * */
+                    * *!/
                     console.log('er moeten concept ids zijn maar die zijn er niet', conceptIds)
                     if (result instanceof Array && conceptIds) {
                         // het is een lijst met films uit de watchlist van Pol
@@ -71,45 +67,8 @@ resultaat lijst pol = lijst met film ids {
             default:
                 throw new Error('aggregate type' + a.type + ' not implemented')
         }
-    }
-
-    private static async calculateInnerSelect(r: any, calcFields: Object, client: edgedb.Client, conceptIds: (({ [key: string]: any }) | undefined)): any {
-        const objToSelect: { [key: string]: any } = {}
-        for (const [k, v] of Object.entries(calcFields)) {
-            // in ons voorbeeld zal dit maar 1 property 'isInList' zijn
-            if (v instanceof Aggregate) {
-                // todo werk recursie weg
-                console.log('ok for now', k, v)
-                /*
-                *             id: true,
-            title: true,
-            actors: {name: true},
-            release_year: true,
-            * // todo dit moet je terugsturen => een query dus .run(client) NIET doen!
-            isInList:
-            * e.op(                                             * new Aggregate(AggregateType.Equals
-            *   e.count(e.select(                                   ** new Aggregate(AggregateType.CountEquals
-            *      myAccount.watchlist, (r)=>({id:true,filter:           *** new CrudActionConstruct(...
-                            * e.op(                                         **
-                            *   movie.id,                                       'movie'
-                            *   '=',                                            **
-                            *   r.id                                            ***
-                            * )
-                    }))
-                ),
-            *   '=',                                              *,
-            *   1)                                                1
-            *
-            * todo hoe kunnen we het één nu construeren uit het andere?
-            *  (het resultaat van een aggregaat is altijd een constructie
-            *   zoals hierboven te gebruiken binnen een echte crudactie
-            *
-                * */
-                objToSelect[k] = await this.resolveAggregate(r, v, client, conceptIds)
-            }
-        }
-    }
-
+    }*/
+    // todo alles aanpassen naar query construct waar nodig
     public static async executeAction(id: ActionIdType, client: edgedb.Client, conceptIds: (({ [key: string]: any }) | undefined))
         : Promise<unknown> {
         const ca = this.serverActions
@@ -127,7 +86,11 @@ resultaat lijst pol = lijst met film ids {
                         }
                         if (ca.calculatedFields) {
                             const calcFields = ca.calculatedFields
-                            return e.select(concept, (r: any) => (this.constructQueryObject(objToSelect, r, calcFields, conceptIds))).run(client)
+                            // dit wortd niet elke keer uitgevoerd op het moment, maar als je een willkeurig ding pakt moet het wel werken denk ik
+                            const selectTR =  await e.select(concept, (r: any) => ({...this.constructQueryObject(objToSelect, r, calcFields, conceptIds,client)})).run(client)
+                            console.log(selectTR,'selectTr')
+                            // todo enkel de id's van elke film komt terug hoewel de funtie eigenlijk een correct object teruggeeft
+                            return selectTR
                         }
                         return e.select(concept, (r: any) => (objToSelect)).run(client)
                     } else throw new Error('concept in crud action not implemented')
@@ -195,10 +158,13 @@ resultaat lijst pol = lijst met film ids {
             }
         } else throw new Error('bad request')
     }
-
-    private static constructQueryObject(queryProps: any, r: any, calcFields: Object, conceptIds: { [p: string]: any } | undefined): any {
+    private static async constructQueryObject(queryProps: any, r: any, calcFields: Object, conceptIds: { [p: string]: any } | undefined,client: edgedb.Client): Promise<any> {
+        // todo fix: nu komen alle films terug maar zonder de ndoige properties
+        console.log(queryProps,'queryprops start')
         // gebruik queryProps om aan te vullen met query construct cal props
         // r is het record dat komt van de bovenliggende query in dit geval een film
+        let query: any
+        let innerQuery: any
         for (const [k, v] of Object.entries(calcFields)) {
             if (v instanceof Aggregate) {
                 /*
@@ -216,11 +182,10 @@ resultaat lijst pol = lijst met film ids {
             *   1)                                                1
             *
                 * */
-                let query: any
-                let innerQuery: any
                 switch (v.type) {
                     case AggregateType.Equals:
                         query = e.op
+                        console.log(query, 'query thus far')
                         const source = v.source
                         const target = v.target
                         if (source instanceof Aggregate) {
@@ -233,18 +198,21 @@ resultaat lijst pol = lijst met film ids {
                                             const objToSelect: { [key: string]: any } = {}
                                             objToSelect[target2.concept[1]] = {id: true}
                                             const concept = (e as any)[helpers.capitalizeFirst(target2.concept[0])]
+                                            const innerSelect = (e.select(concept, (
+                                                    ri) => ({
+                                                    ...objToSelect,
+                                                    filter_single: {...target2.filter} as any
+                                                })
+                                            ) as any)[target2.concept[1]]
                                             innerQuery = e.count(e.select(
-                                                    (e.select(concept, (
-                                                            ri) => ({
-                                                            ...objToSelect,
-                                                            filter_single: {...target2.filter} as any
-                                                        })
-                                                    ) as any)[target2.concept[0]], (rj: any) => ({
+                                                    innerSelect, (rj: any) => ({
                                                         id: true,
-                                                        filter: e.op(r.id, '=', rj.id)
+                                                        filter_single: e.op(e.str('1d01d714-b6cc-11ee-810c-b73c23411c9e'), '=', e.str(rj.id.toString()))
                                                     })
                                                 )
                                             )
+                                            const resultMustBeOne = await innerQuery.run(client)
+                                            console.log(resultMustBeOne,'rmo')
                                         }
                                     }
                                     break
@@ -255,6 +223,6 @@ resultaat lijst pol = lijst met film ids {
                 }
             } else throw new Error('calc fields for QueryActionConstruct not implemented yet')
         }
-         return queryProps
+        return queryProps
     }
 }
