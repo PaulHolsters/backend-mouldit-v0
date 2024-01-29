@@ -47,7 +47,7 @@ export class ServerActions {
                     // het gaat om een getOne actie namelijk de lijst van Pol ophalen
                     const result = await this.executeAction(actionId, client, conceptIds)
                     /*
-resultaat lijst pol {
+resultaat lijst pol = lijst met film ids {
   watchlist: [
     { id: '1d01ca30-b6cc-11ee-810c-5355de4f6cd5' },
     { id: '1d01d1d8-b6cc-11ee-810c-634c3c550a7b' },
@@ -58,6 +58,7 @@ resultaat lijst pol {
   ]
 }
                     * */
+                    console.log('er moeten concept ids zijn maar die zijn er niet',conceptIds)
                     if (result instanceof Array && conceptIds) {
                         // het is een lijst met films uit de watchlist van Pol
                         return result.reduce((p, c) => {
@@ -92,8 +93,11 @@ resultaat lijst pol {
                             for (const [k, v] of Object.entries(ca.calculatedFields)) {
                                 if (v instanceof Aggregate) {
                                     // todo werk recursie weg
-                                    // todo fix bug dit is een Promise en er is geen await
                                     console.log('ok for now',k,v)
+                                    // todo hier is nog een probleem: we moeten per film id in de
+                                    //      lijst die je pas hierna opzoekt zien of die overeenkomt met de actie myList
+                                    //      maw het id waarmee je moet vergelijken in onderstaand aggregate is niet aanwezig in de conceptIds
+                                    //      maw het resolven moet in de laatste actie zelf gebeuren ...
                                     objToSelect[k] = await this.resolveAggregate(v, client, conceptIds)
                                 }
                             }
