@@ -30,9 +30,6 @@ export const crudActions: CrudAction[
             )
         }
     ),
-    /*
-    *
-    * */
     new CrudAction(
         CrudActionType.AddOneToList,
         ['account', 'watchlist'],

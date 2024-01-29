@@ -80,7 +80,7 @@ export class ServerActions {
                         return e.select(concept, () => (objToSelect)).run(client)
                     } else throw new Error('concept in crud action mal configurered')
                 case CrudActionType.GetOne:
-                // todo
+                    // todo
                 case CrudActionType.AddOneToList:
                     if (ca.concept instanceof Array && ca.concept.length === 2) {
                         const mainConcept = ca.concept[0]
@@ -98,7 +98,7 @@ export class ServerActions {
                             })).run(client)
                         }
                         if (ca.returnValue) {
-                            // todo werk recursie weg
+                            // todo werk recursie weg: dit is een query dus je lost het op door queries en mutation uit elkaar te trekken
                             return this.executeAction(ca.type + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join()), client, conceptIds)
                         }
                     }
