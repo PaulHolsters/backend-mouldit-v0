@@ -78,9 +78,23 @@ export class ServerActions {
                             })
                         }
                         return e.select(concept, () => (objToSelect)).run(client)
-                    } else throw new Error('concept in crud action mal configurered')
+                    } else throw new Error('concept in crud action not implemented')
                 case CrudActionType.GetOne:
-                    // todo
+                    if(ca.concept instanceof Array && ca.concept.length===2){
+                        if(ca.filter && typeof ca.filter === 'object' && !(ca.filter instanceof Aggregate)){
+                            const filter:any = {...ca.filter}
+                            const objToSelect: { [key: string]: any }={}
+                            objToSelect[ca.concept[1]] = {id:true}
+                            const concept = (e as any)[ca.concept[0]]
+                            const filterProp = Object.keys(filter)[0]
+                            // todo zeker checken of dit eigenlijk wel mogelijk is
+                            return e.select(concept,(r:any)=>({
+                                ...objToSelect,
+                                filter: e.op(r[filterProp],'=',filter[filterProp])
+                            })).run(client)
+                        }
+                    }
+                    throw new Error('concept in crud action not implemented')
                 case CrudActionType.AddOneToList:
                     if (ca.concept instanceof Array && ca.concept.length === 2) {
                         const mainConcept = ca.concept[0]
