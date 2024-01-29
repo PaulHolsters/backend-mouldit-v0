@@ -251,11 +251,10 @@ resultaat lijst pol = lijst met film ids {
                             }
                         }
                         query = query(innerQuery, '=', target)
-                        return query
+                        queryProps[k] = query
                 }
-                // k toevoegen
             } else throw new Error('calc fields for QueryActionConstruct not implemented yet')
         }
-        throw new Error('')
+         return queryProps
     }
 }
