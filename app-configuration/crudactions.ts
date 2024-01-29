@@ -7,12 +7,17 @@ const myList = new CrudAction(
     CrudActionType.GetOne,
     ['account','watchlist'],
     {username: 'Pol'}
-);
+)
 // je neemt de id van het overeenkomstige concept uit de conceptIds
 // je geeft het aantal records uit de target na het uitvoeren van de query die qua id gelijk is
 // je neemt id wanneer er verder geen property staat
 export const crudActions: CrudAction[
     ] = [
+    new CrudAction(
+        CrudActionType.GetOne,
+        ['account','watchlist'],
+        {username: 'Pol'}
+    ),
     new CrudAction(
         CrudActionType.Get,
         'movie',
@@ -33,6 +38,7 @@ export const crudActions: CrudAction[
     new CrudAction(
         CrudActionType.AddOneToList,
         ['account', 'watchlist'],
+        // indien er een ID aanwezig is wordt dit genegeerd indien er een filter is
         {username: 'Pol'},
         new CrudAction(
             CrudActionType.GetOne,

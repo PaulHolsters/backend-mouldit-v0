@@ -24,10 +24,10 @@ client.ensureConnected().then(() => {
             next()
         })
         server.post('/:actionId', (req: Request, res: Response, next) => {
-            // todo alles aanpassen qua conceptIds en zo
-            const result = ServerActions.executeAction(req.params.actionId,client,req.body?.id)
+            const queryParamsObj = req.query && Object.keys(req.query).length > 0 ? {...req.query} : undefined
+            const result = ServerActions.executeAction(req.params.actionId, client, queryParamsObj)
             if (result) {
-                        res.status(200).send(result)
+                res.status(200).send(result)
             } else res.status(500)
         })
         const port = Number(process.env.PORT || 5000)

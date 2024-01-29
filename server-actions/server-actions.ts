@@ -16,7 +16,7 @@ export class ServerActions {
 
     private static constructId(ca: CrudAction): string {
         if (ca.concept instanceof Array) {
-            return ca.type + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join())
+            return ca.type + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join(''))
         }
         return ca.type + helpers.capitalizeFirst(ca.concept)
     }
@@ -25,23 +25,40 @@ export class ServerActions {
         return (conceptIds as { [key: string]: any })[concept]
     }
 
-    private static async resolveAggregate(a: Aggregate, conceptIds: { [key: string]: any }, client: edgedb.Client): Promise<boolean | number> {
+    private static async resolveAggregate(a: Aggregate,  client: edgedb.Client,conceptIds: (({ [key: string]: any })|undefined)): Promise<boolean | number> {
+        console.log('resolving aggr',conceptIds)
         let source: Aggregate | string | boolean | number = a.source
         const target = a.target
         switch (a.type) {
             case AggregateType.Equals:
                 if (source instanceof Aggregate) {
-                    source = await this.resolveAggregate(source, conceptIds, client)
+                    console.log('de equals pre')
+                    source = await this.resolveAggregate(source,  client,conceptIds)
+                    console.log('de equals',source) // todo tot hier geraak ik niet
                     if (typeof source === 'number' && typeof target === 'number') return source === target
                 }
                 throw new Error('possibility not implemented')
             case AggregateType.CountEquals:
                 if (typeof source === 'string' && target instanceof CrudAction) {
                     const sourceCt = source
+                    console.log('should be movie',sourceCt)
                     const actionId: string = this.constructId(target)
+                    console.log('id',actionId)
                     // het gaat om een getOne actie namelijk de lijst van Pol ophalen
                     const result = await this.executeAction(actionId, client, conceptIds)
-                    if (result instanceof Array) {
+                    /*
+resultaat lijst pol {
+  watchlist: [
+    { id: '1d01ca30-b6cc-11ee-810c-5355de4f6cd5' },
+    { id: '1d01d1d8-b6cc-11ee-810c-634c3c550a7b' },
+    { id: '1d01d3d6-b6cc-11ee-810c-bb254af1e63e' },
+    { id: '1d01d57a-b6cc-11ee-810c-27c3edab721c' },
+    { id: '1d01d714-b6cc-11ee-810c-b73c23411c9e' },
+    { id: '1d01d89a-b6cc-11ee-810c-6b54d12b3bd6' }
+  ]
+}
+                    * */
+                    if (result instanceof Array && conceptIds) {
                         // het is een lijst met films uit de watchlist van Pol
                         return result.reduce((p, c) => {
                             (c.id === this.getIdForConcept(sourceCt, conceptIds)) ? p++ : p
@@ -54,55 +71,61 @@ export class ServerActions {
         }
     }
 
-    public static executeAction(id: ActionIdType, client: edgedb.Client, conceptIds: { [key: string]: any })
+    public static async executeAction(id: ActionIdType, client: edgedb.Client,conceptIds: (({ [key: string]: any })|undefined))
         : Promise<unknown> {
         const ca = this.serverActions
-            .find(sa => id === sa.type + helpers
-                .capitalizeFirst(sa.concept instanceof Array ?
-                    sa.concept.map(p => helpers.capitalizeFirst(p)).join() :
-                    sa.concept))
+            .find(sa => id === sa.type + (sa.concept instanceof Array ?
+                sa.concept.map(p => helpers.capitalizeFirst(p)).join('') :
+                helpers
+                    .capitalizeFirst(sa.concept)))
+        // todo fix bugeen geneste CrudActie kan niet gevonden worden bv. de getOne voorlopig copy paste
+        //              later via algoritme deeper search
         if (ca) {
             switch (ca.type) {
                 case CrudActionType.Get:
                     if (typeof ca.concept === 'string') {
-                        const concept = (e as any)[ca.concept]
+                        const concept = (e as any)[helpers.capitalizeFirst(ca.concept)]
                         const objToSelect = {
                             ...concept['*'],
                         }
                         if (ca.calculatedFields) {
-                            Object.entries(ca.calculatedFields).forEach(([k, v]: any) => {
+                            for (const [k, v] of Object.entries(ca.calculatedFields)) {
                                 if (v instanceof Aggregate) {
                                     // todo werk recursie weg
-                                    objToSelect[k] = this.resolveAggregate(v, conceptIds, client)
+                                    // todo fix bug dit is een Promise en er is geen await
+                                    console.log('ok for now',k,v)
+                                    objToSelect[k] = await this.resolveAggregate(v, client, conceptIds)
                                 }
-                            })
+                            }
                         }
+                        console.log('getting there',objToSelect)
                         return e.select(concept, () => (objToSelect)).run(client)
                     } else throw new Error('concept in crud action not implemented')
                 case CrudActionType.GetOne:
-                    if(ca.concept instanceof Array && ca.concept.length===2){
-                        if(ca.filter && typeof ca.filter === 'object' && !(ca.filter instanceof Aggregate)){
-                            const filter:any = {...ca.filter}
-                            const objToSelect: { [key: string]: any }={}
-                            objToSelect[ca.concept[1]] = {id:true}
-                            const concept = (e as any)[ca.concept[0]]
-                            const filterProp = Object.keys(filter)[0]
+                    console.log('getOne',ca)
+                    if (ca.concept instanceof Array && ca.concept.length === 2) {
+                        if (ca.filter && typeof ca.filter === 'object' && !(ca.filter instanceof Aggregate)) {
+                            const objToSelect: { [key: string]: any } = {}
+                            objToSelect[ca.concept[1]] = {id: true}
+                            const concept = (e as any)[helpers.capitalizeFirst(ca.concept[0])]
                             // todo zeker checken of dit eigenlijk wel mogelijk is
-                            return e.select(concept,(r:any)=>({
-                                ...objToSelect,
-                                filter: e.op(r[filterProp],'=',filter[filterProp])
+                            console.log('crud resturn about to happen',concept)
+                            return e.select(concept, (r: any) => ({
+                            ...objToSelect,
+                                filter_single: {...ca.filter} as any
                             })).run(client)
                         }
                     }
                     throw new Error('concept in crud action not implemented')
                 case CrudActionType.AddOneToList:
-                    if (ca.concept instanceof Array && ca.concept.length === 2) {
-                        const mainConcept = ca.concept[0]
+                    if (ca.concept instanceof Array && ca.concept.length === 2 && conceptIds) {
+                        const mainConcept = helpers.capitalizeFirst(ca.concept[0])
                         const setObj: any = {}
                         setObj[ca.concept[1]] = {"+=": conceptIds[ca.concept[1]]}
-                        if (ca.filter) {
-                            e.update((e as any)[mainConcept], () => ({
-                                filter_single: (ca.filter) as any,
+                        if (ca.filter && typeof ca.filter === 'object' && !(ca.filter instanceof Aggregate)) {
+                            // todo zeker checken of dit eigenlijk wel mogelijk is
+                            e.update((e as any)[mainConcept], (r:any) => ({
+                                filter_single: {...ca.filter} as any,
                                 set: setObj
                             })).run(client)
                         } else {
@@ -118,13 +141,14 @@ export class ServerActions {
                     }
                     throw new Error('concept in crud action mal configurered')
                 case CrudActionType.RemoveOneFromList:
-                    if (ca.concept instanceof Array && ca.concept.length === 2) {
-                        const mainConcept = ca.concept[0]
+                    if (ca.concept instanceof Array && ca.concept.length === 2 && conceptIds) {
+                        const mainConcept = helpers.capitalizeFirst(ca.concept[0])
                         const setObj: any = {}
                         setObj[ca.concept[1]] = {"-=": conceptIds[ca.concept[1]]}
-                        if (ca.filter) {
-                            e.update((e as any)[mainConcept], () => ({
-                                filter_single: (ca.filter) as any,
+                        if (ca.filter && typeof ca.filter === 'object' && !(ca.filter instanceof Aggregate)) {
+                            // todo zeker checken of dit eigenlijk wel mogelijk is
+                            e.update((e as any)[mainConcept], (r:any) => ({
+                                filter_single: {...ca.filter} as any,
                                 set: setObj
                             })).run(client)
                         } else {
