@@ -26,7 +26,6 @@ export const crudActions: CrudAction[
         undefined,
         {
             isInList:
-            // todo hoe resolven we dit het beste? het resultaat van een aggregate MOET een edgeql Query zijn! niet het resultaat van de executie ervan!
                 new Aggregate(
                     AggregateType.Equals,
                     new Aggregate(

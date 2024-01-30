@@ -26,7 +26,6 @@ client.ensureConnected().then(() => {
         server.post('/:actionId', async (req: Request, res: Response, next) => {
             const queryParamsObj = req.query && Object.keys(req.query).length > 0 ? {...req.query} : undefined
             const result = await ServerActions.executeAction(req.params.actionId, client, queryParamsObj)
-            console.log(result, 'is er resultaat?')
             if (result) {
                 res.status(200).send(result)
             } else res.status(500)

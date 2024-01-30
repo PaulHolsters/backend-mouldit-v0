@@ -22,52 +22,6 @@ export class ServerActions {
     private static getIdForConcept(concept: string, conceptIds: { [key: string]: any }): string {
         return (conceptIds as { [key: string]: any })[concept]
     }
-/*    private static async resolveAggregate(r: any, a: Aggregate, client: edgedb.Client, conceptIds: (({ [key: string]: any }) | undefined)): any {
-        console.log('resolving aggr', conceptIds)
-        let source: Aggregate | string | boolean | number = a.source
-        const target = a.target
-        switch (a.type) {
-            case AggregateType.Equals:
-                if (source instanceof Aggregate) {
-                    // todo wegwerken die handel!
-                    source = await this.resolveAggregate(r, source, client, conceptIds)
-                    console.log('de equals', source) // todo tot hier geraak ik niet
-                    if (typeof source === 'number' && typeof target === 'number') return source === target
-                }
-                throw new Error('possibility not implemented')
-            case AggregateType.CountEquals:
-                if (typeof source === 'string' && target instanceof CrudAction) {
-                    const sourceCt = source
-                    console.log('should be movie', sourceCt)
-                    const actionId: string = this.constructId(target)
-                    console.log('id', actionId)
-                    // het gaat om een getOne actie namelijk de lijst van Pol ophalen
-                    const result = await this.executeAction(actionId, client, conceptIds)
-                    /!*
-resultaat lijst pol = lijst met film ids {
-  watchlist: [
-    { id: '1d01ca30-b6cc-11ee-810c-5355de4f6cd5' },
-    { id: '1d01d1d8-b6cc-11ee-810c-634c3c550a7b' },
-    { id: '1d01d3d6-b6cc-11ee-810c-bb254af1e63e' },
-    { id: '1d01d57a-b6cc-11ee-810c-27c3edab721c' },
-    { id: '1d01d714-b6cc-11ee-810c-b73c23411c9e' },
-    { id: '1d01d89a-b6cc-11ee-810c-6b54d12b3bd6' }
-  ]
-}
-                    * *!/
-                    console.log('er moeten concept ids zijn maar die zijn er niet', conceptIds)
-                    if (result instanceof Array && conceptIds) {
-                        // het is een lijst met films uit de watchlist van Pol
-                        return result.reduce((p, c) => {
-                            (c.id === this.getIdForConcept(sourceCt, conceptIds)) ? p++ : p
-                        }, 0)
-                    }
-                }
-                throw new Error('possibility not implemented')
-            default:
-                throw new Error('aggregate type' + a.type + ' not implemented')
-        }
-    }*/
     // todo alles aanpassen naar query construct waar nodig
     public static async executeAction(id: ActionIdType, client: edgedb.Client, conceptIds: (({ [key: string]: any }) | undefined))
         : Promise<unknown> {
@@ -85,19 +39,12 @@ resultaat lijst pol = lijst met film ids {
                             ...concept['*'],
                             isInList: e.bool(true)
                         }
-                        console.log(objToSelect)
                         if (ca.calculatedFields) {
                             const calcFields = ca.calculatedFields
-                            // strategie: maak array met props van de calcfields
-                            //  await this.constructQueryObject(objToSelect, r, calcFields, conceptIds, client)})
-                            const selectTR = await e.select(concept, (r: any) => ({
+                            return await e.select(concept, (r: any) => ({
                                 ...concept['*'],
-                                // todo dit werkt al beter, enkel de vergelijking met elk record qua id werkt nog niet naar behoren
                                 isInList: this.constructQueryObject(r.id,calcFields,conceptIds,client)
                             })).run(client)
-                            console.log(selectTR,'selectTr')
-                            // todo enkel de id's van elke film komt terug hoewel de funtie eigenlijk een correct object teruggeeft
-                            return selectTR
                         }
                         return e.select(concept, (r: any) => (objToSelect)).run(client)
                     } else throw new Error('concept in crud action not implemented')
@@ -134,6 +81,7 @@ resultaat lijst pol = lijst met film ids {
                         }
                         if (ca.returnValue) {
                             // todo werk recursie weg: dit is een query dus je lost het op door queries en mutation uit elkaar te trekken
+                            //      maar uiteindelijk is het beter om gewoon elke actie uit elkaar te trekken
                             return this.executeAction(ca.type + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join()), client, conceptIds)
                         }
                     }
@@ -166,7 +114,6 @@ resultaat lijst pol = lijst met film ids {
         } else throw new Error('bad request')
     }
     private static constructQueryObject(id: any, calcFields: Object, conceptIds: { [p: string]: any } | undefined,client: edgedb.Client): any {
-        // gebruik queryProps om aan te vullen met query construct cal props
         // r is het record dat komt van de bovenliggende query in dit geval een film
         let query: any
         let innerQuery: any
@@ -190,7 +137,6 @@ resultaat lijst pol = lijst met film ids {
                 switch (v.type) {
                     case AggregateType.Equals:
                         query = e.op
-                        console.log(query, 'query thus far')
                         const source = v.source
                         const target = v.target
                         if (source instanceof Aggregate) {
@@ -213,21 +159,16 @@ resultaat lijst pol = lijst met film ids {
                                                 e.select(
                                                     innerSelect, (rj: any) => ({
                                                         id: true,
-                                                       // filter_single:{id:id} as any
                                                         filter:e.op(rj.id,'=',id)
                                                     })
                                                 )
                                             )
-                                            //e.str(rj.id.toString())
-                                            //e.op(rj.id.toString(), '=', '1d01d714-b6cc-11ee-810c-b73c23411c9e')
-                                            // e.op(e.str('1d01d714-b6cc-11ee-810c-b73c23411c9e'), '=', '1d01d714-b6cc-11ee-810c-b73c23411c9e')
-                                            // todo op het moment dat je dit uitvoert is er van een id volgens mij nog geen sprake ...
                                         }
                                     }
                                     break
                             }
                         }
-                        query = query(innerQuery, '=', target) as boolean
+                        query = query(innerQuery, '=', target)
                 }
             } else throw new Error('calc fields for QueryActionConstruct not implemented yet')
         }
