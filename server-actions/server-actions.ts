@@ -23,7 +23,7 @@ export class ServerActions {
         return (conceptIds as { [key: string]: any })[concept]
     }
     // todo alles aanpassen naar query construct waar nodig
-    public static async executeAction(id: ActionIdType, client: edgedb.Client, conceptIds: (({ [key: string]: any }) | undefined))
+    public static async executeAction(id: ActionIdType, client: edgedb.Client, conceptIds: ({ [key: string]: any }| undefined))
         : Promise<unknown> {
         const ca = this.serverActions
             .find(sa => id === sa.type + (sa.concept instanceof Array ?
@@ -54,7 +54,6 @@ export class ServerActions {
                             const objToSelect: { [key: string]: any } = {}
                             objToSelect[ca.concept[1]] = {id: true}
                             const concept = (e as any)[helpers.capitalizeFirst(ca.concept[0])]
-                            // todo zeker checken of dit eigenlijk wel mogelijk is
                             return e.select(concept, (r: any) => ({
                                 ...objToSelect,
                                 filter_single: {...ca.filter} as any
@@ -66,23 +65,30 @@ export class ServerActions {
                     if (ca.concept instanceof Array && ca.concept.length === 2 && conceptIds) {
                         const mainConcept = helpers.capitalizeFirst(ca.concept[0])
                         const setObj: any = {}
-                        setObj[ca.concept[1]] = {"+=": conceptIds[ca.concept[1]]}
+                        const key = Object.keys(conceptIds).filter(i=>!ca.concept.includes(i))[0]
+                        const conceptUsed = (e as any)[helpers.capitalizeFirst(key)]
+                        const instance = e.select(conceptUsed,()=>({
+                            filter_single:{id: conceptIds[key]} as any
+                        }))
+                        setObj[ca.concept[1]] = {"+=": instance}
                         if (ca.filter && typeof ca.filter === 'object' && !(ca.filter instanceof Aggregate)) {
-                            // todo zeker checken of dit eigenlijk wel mogelijk is
                             e.update((e as any)[mainConcept], (r: any) => ({
                                 filter_single: {...ca.filter} as any,
                                 set: setObj
                             })).run(client)
-                        } else {
+                        } else if(conceptIds.length===2){
                             e.update((e as any)[mainConcept], () => ({
-                                filter_single: ({id: conceptIds[ca.concept[0]]} as unknown) as any,
+                                filter_single: ({id: conceptIds[0]} as unknown) as any,
                                 set: setObj
                             })).run(client)
-                        }
+                        } else throw new Error('Ongeldig aantal concept Ids doorgekregen')
                         if (ca.returnValue) {
                             // todo werk recursie weg: dit is een query dus je lost het op door queries en mutation uit elkaar te trekken
                             //      maar uiteindelijk is het beter om gewoon elke actie uit elkaar te trekken
-                            return this.executeAction(ca.type + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join()), client, conceptIds)
+
+                            // todo fix bug: deze actie wordt niet teruggevonden
+                            return this.executeAction(ca.type
+                                + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join()), client, conceptIds)
                         }
                     }
                     throw new Error('concept in crud action mal configurered')
@@ -90,19 +96,19 @@ export class ServerActions {
                     if (ca.concept instanceof Array && ca.concept.length === 2 && conceptIds) {
                         const mainConcept = helpers.capitalizeFirst(ca.concept[0])
                         const setObj: any = {}
-                        setObj[ca.concept[1]] = {"-=": conceptIds[ca.concept[1]]}
+                        setObj[ca.concept[1]] = {"-=": e.uuid(conceptIds[conceptIds.length===2?1:0])}
                         if (ca.filter && typeof ca.filter === 'object' && !(ca.filter instanceof Aggregate)) {
                             // todo zeker checken of dit eigenlijk wel mogelijk is
                             e.update((e as any)[mainConcept], (r: any) => ({
                                 filter_single: {...ca.filter} as any,
                                 set: setObj
                             })).run(client)
-                        } else {
+                        } else if(conceptIds.length===2){
                             e.update((e as any)[mainConcept], () => ({
-                                filter_single: ({id: conceptIds[ca.concept[0]]} as unknown) as any,
+                                filter_single: ({id: conceptIds[0]} as unknown) as any,
                                 set: setObj
                             })).run(client)
-                        }
+                        } else throw new Error('Ongeldig aantal concept Ids doorgekregen')
                         if (ca.returnValue) {
                             return this.executeAction(ca.type + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join()), client, conceptIds)
                         }
