@@ -44,6 +44,7 @@ export const crudActions: CrudAction[
         {username: 'Pol'},
         new CrudAction(
             CrudActionType.GetOne,
+            // todo return value of query type mogelijk maken dat toelaat de velden te specifiëren
             'movie',
             undefined,
             undefined,

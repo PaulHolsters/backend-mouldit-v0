@@ -23,6 +23,43 @@ export class ServerActions {
         return (conceptIds as { [key: string]: any })[concept]
     }
     // todo alles aanpassen naar query construct waar nodig
+    private static replaceJSWithEdgeQL(calFields:Object):Object{
+        const calcFieldsCopy: { [key: string]: any } = {...calFields}
+        Object.entries(calFields).forEach(([k,v])=>{
+            if(typeof v === 'boolean') {calcFieldsCopy[k]=e.bool(v)}
+        })
+        return calcFieldsCopy
+    }
+    private static async executeResponseRequest(query: CrudAction, client: edgedb.Client, conceptIds: ({ [key: string]: any }| undefined)): Promise<unknown> {
+        switch (query.type) {
+            case CrudActionType.GetOne:
+                if (query.concept instanceof Array && query.concept.length === 2) {
+                    if (query.filter && typeof query.filter === 'object' && !(query.filter instanceof Aggregate)) {
+                        const objToSelect: { [key: string]: any } = {}
+                        objToSelect[query.concept[1]] = {id: true}
+                        const concept = (e as any)[helpers.capitalizeFirst(query.concept[0])]
+                        return e.select(concept, (r: any) => ({
+                            ...objToSelect,
+                            filter_single: {...query.filter} as any
+                        })).run(client)
+                    }
+                } else if(typeof query.concept === 'string' && !query.filter && conceptIds){
+                    const id = conceptIds[query.concept]
+                    const concept = (e as any)[helpers.capitalizeFirst(query.concept)]
+                    const objToSelect: { [key: string]: any } = {
+                        ...concept['*']
+                    }
+                    if(query.calculatedFields){
+                        Object.assign(objToSelect,this.replaceJSWithEdgeQL(query.calculatedFields))
+                    }
+                    return e.select(concept, (r: any) => ({
+                        ...objToSelect,
+                        filter_single: {id:id} as any
+                    })).run(client)
+                }
+                throw new Error('concept in crud action not implemented')
+        }
+    }
     public static async executeAction(id: ActionIdType, client: edgedb.Client, conceptIds: ({ [key: string]: any }| undefined))
         : Promise<unknown> {
         const ca = this.serverActions
@@ -85,10 +122,7 @@ export class ServerActions {
                         if (ca.returnValue) {
                             // todo werk recursie weg: dit is een query dus je lost het op door queries en mutation uit elkaar te trekken
                             //      maar uiteindelijk is het beter om gewoon elke actie uit elkaar te trekken
-
-                            // todo fix bug: deze actie wordt niet teruggevonden
-                            return this.executeAction(ca.type
-                                + helpers.capitalizeFirst(ca.concept.map(p => helpers.capitalizeFirst(p)).join()), client, conceptIds)
+                            return this.executeResponseRequest(ca.returnValue, client, conceptIds)
                         }
                     }
                     throw new Error('concept in crud action mal configurered')
